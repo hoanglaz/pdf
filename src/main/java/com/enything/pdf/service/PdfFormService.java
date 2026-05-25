@@ -26,6 +26,8 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import java.io.InputStream;
 
 @Service
 public class PdfFormService {
@@ -43,7 +45,16 @@ public class PdfFormService {
             PDAcroForm acroForm = new PDAcroForm(document);
             document.getDocumentCatalog().setAcroForm(acroForm);
             acroForm.setNeedAppearances(false);
-            ensureDefaultAppearance(acroForm);
+
+            // Load Arial font for Vietnamese support
+            PDType0Font arialFont;
+            try (InputStream fontStream = getClass().getResourceAsStream("/fonts/ARIAL.TTF")) {
+                if (fontStream == null) {
+                    throw new PdfProcessingException("Font ARIAL.TTF not found in resources/fonts");
+                }
+                arialFont = PDType0Font.load(document, fontStream, true);
+            }
+            ensureDefaultAppearance(acroForm, arialFont);
 
             List<FieldConfigDto> fields = template.getFields();
             int addedCount = 0;
@@ -91,7 +102,14 @@ public class PdfFormService {
 
         PDTextField textField = new PDTextField(acroForm);
         textField.setPartialName(cfg.getName());
-        textField.setDefaultAppearance("/Helv 10 Tf 0 g");
+
+        // Sử dụng font Arial Unicode cho field
+        PDResources resources = acroForm.getDefaultResources();
+        if (resources != null && resources.getFontNames().contains(COSName.getPDFName("Arial"))) {
+            textField.setDefaultAppearance("/Arial 10 Tf 0 g");
+        } else {
+            textField.setDefaultAppearance("/Helv 10 Tf 0 g");
+        }
 
         if (cfg.isMultiline()) {
             textField.setMultiline(true);
@@ -109,18 +127,14 @@ public class PdfFormService {
         }
     }
 
-    private void ensureDefaultAppearance(PDAcroForm acroForm) {
+    private void ensureDefaultAppearance(PDAcroForm acroForm, PDType0Font arialFont) {
         if (acroForm.getDefaultResources() == null) {
             acroForm.setDefaultResources(new PDResources());
         }
-
-        acroForm.getDefaultResources().put(
-            COSName.getPDFName("Helv"),
-            new PDType1Font(Standard14Fonts.FontName.HELVETICA)
-        );
-
+        // Đặt font Arial với tên "Arial"
+        acroForm.getDefaultResources().put(COSName.getPDFName("Arial"), arialFont);
         if (acroForm.getDefaultAppearance() == null || acroForm.getDefaultAppearance().isBlank()) {
-            acroForm.setDefaultAppearance("/Helv 10 Tf 0 g");
+            acroForm.setDefaultAppearance("/Arial 10 Tf 0 g");
         }
     }
 
