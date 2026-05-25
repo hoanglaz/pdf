@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import java.io.InputStream;
+import java.util.stream.StreamSupport;
 
 @Service
 public class PdfFormService {
@@ -105,7 +106,11 @@ public class PdfFormService {
 
         // Sử dụng font Arial Unicode cho field
         PDResources resources = acroForm.getDefaultResources();
-        if (resources != null && resources.getFontNames().contains(COSName.getPDFName("Arial"))) {
+        boolean hasArial = resources != null &&
+                StreamSupport.stream(resources.getFontNames().spliterator(), false)
+                        .anyMatch(name -> name.equals(COSName.getPDFName("Arial")));
+
+        if (hasArial) {
             textField.setDefaultAppearance("/Arial 10 Tf 0 g");
         } else {
             textField.setDefaultAppearance("/Helv 10 Tf 0 g");
